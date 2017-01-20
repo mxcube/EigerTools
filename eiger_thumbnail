@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+
+"""
+    This module builds a thumbnail from an hdf5 file containing
+    a series of Eiger images
+
+    It does:
+      - open hdf5, reads nb_images, sum them up
+      - separate every module (without the stripes between modules)
+      - reduce the data in every module by applying a binning
+      - build a full data image with those reduced modules and set stripes between them
+      - generates a jpeg image from the full (reduced) data and saved it
+"""
+
+import sys
+import os
+
+# possibl location of EigerDataSet module
+sys.path.append(os.path.join( os.environ.get("HOME"), "python"))
+
+from EigerDataSet import EigerDataSet
+
+
+def printUsage():
+    print "Usage: %s inputfile binfactor [nimages]" % sys.argv[0]
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser("generates thumbnails from eiger images", \
+              description = '''\
+This program will generate thumbnails from Eiger datasets. 
+
+The way to specify a dataset is by providing any of the files composing it, either
+a data file or the master file. Beware that once the dataset is determined the 
+image index will be that of the dataset, not the one of the individual datafile
+provided as input file. 
+
+To create a thumbnail a number of images are summed up then reduced by binning 
+(i.e. integrating adjacent pixels). The reduction factor is specified by the
+parameter "binfactor". For example, if binfactor=4 the resulting image dimensions 
+will be reduced by 4 in each direction. 
+
+Resolution rings are automatically generated and overlapped over the image. 
+
+If no output file is provided, it will be generated from the inputfile name.
+    ''')
+
+    parser.add_argument("-o", "--output_file", help="thumbnail file name",  required=False)
+    parser.add_argument("-n", "--nb_images", type=int, default=5, help="number of images to merge (default=5)", required=False)
+    parser.add_argument("-f", "--first_image", type=int, default=0, help="first image index used (default=0)", required=False)
+    parser.add_argument("-b", "--binfactor", type=int, help="binning factor", required=True)
+    parser.add_argument("-r", "--rings", help="comma separated list of distances (0=center, 1=border) on which to add resolution rings", required=False)
+    parser.add_argument("inputfile", help="one of the input files of a dataset from which to generate the thumbnail")
+
+    args = parser.parse_args()
+
+    input_file = args.inputfile
+    binfactor = args.binfactor
+    nimages = args.nb_images
+    first_image = args.first_image
+
+    if args.output_file is None:
+        rootname, ext = os.path.splitext(input_file)
+        output_file = rootname + "_bin%02d.jpg" % binfactor
+    else:
+        output_file = args.output_file
+
+    dataset = EigerDataSet(input_file)
+
+    if args.rings is None:
+        rings = [0.25, 0.50, 0.75, 1.00, 1.25]
+    else:
+        rings = map(float, args.rings.split("."))
+          
+    dataset.save_thumbnail(binfactor, \
+                output_file=output_file, \
+                start_image=first_image, \
+                nb_images=nimages, \
+                rings=rings)
+
+if __name__ == '__main__':
+    main()
+
