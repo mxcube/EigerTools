@@ -3,6 +3,8 @@
 
    Description:  Implements access to an Eiger dataset
 
+   Author:  Proxima2
+
 """
 import math
 import re
